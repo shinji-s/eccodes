@@ -1,0 +1,286 @@
+// shiolab_loaders.cpp : Defines the exported functions for the DLL application.
+//
+
+#include "stdafx.h"
+#include <stdlib.h>
+#include <memory.h>
+#include <assert.h>
+#include <eccodes.h>
+#include <map>
+#include <sstream>
+
+struct modifier {
+	const char * key;
+	long value;
+	long index;
+	modifier(const char *key_, long value_, long index_)
+		: key(key_), value(value_), index(index_) {}
+};
+
+int load_modifiers(std::map<long, modifier>& modifiers,
+	codes_handle * h, long subset_number,
+	const char * modifier_name,
+	long num_occurence_per_subset)
+{
+	long base = subset_number * num_occurence_per_subset;
+	for (long j = 0; j < num_occurence_per_subset; ++j) {
+		char key[128];
+		sprintf_s(key, "#%d#%s->index", base + j, modifier_name);
+		long index;
+		if (codes_get_long(h, key, &index) != 0)
+			return -5;
+		sprintf_s(key, "#%d#%s", base + j, modifier_name);
+		long value;
+		if (codes_get_long(h, key, &value) != 0)
+			return -5;
+		modifier m(modifier_name, value, index);
+		modifiers.insert(std::pair<long, modifier>(index, m));
+	}
+	return 0;
+}
+
+static long determine_num_occurence_per_subset(codes_handle *h,
+	const char * field_name)
+{
+	long upper_bound_index;
+	if (codes_get_long(h, "#2#organizationCode->index",
+		&upper_bound_index) != 0)
+		return 0;
+
+	int n = 1;
+	long index;
+	for (;;) {
+		char buf[32];
+		sprintf_s(buf, "#%d#%s->index", n, field_name);
+		if (codes_get_long(h, buf, &index) != 0)
+			return 0;
+		if (!(index < upper_bound_index))
+			break;
+		++n;
+	}
+	return n - 1;
+}
+
+template <typename T>
+int emit_elem( int (*accessor)(codes_handle *, const char *key, T *),
+	std::stringstream& ss,
+	codes_handle *h, long rank, const char * key,
+	const std::map<long, modifier>& modifiers)
+{
+	char ranked_key[128];
+	sprintf_s(ranked_key, "#%d#%s", rank, key);
+	T value;
+	if ((*accessor)(h, ranked_key, &value) != 0)
+		return -1;
+	sprintf_s(ranked_key, "#%d#%s->index", rank, key);
+	long index;
+	if (codes_get_long(h, ranked_key, &index) != 0)
+		return -1;
+	ss << "{\"value\":" << value << ',';
+	ss << "\"index\":" << index;
+	long i = index - 1;
+	while (0 < i) {
+		auto kv = modifiers.find(i);
+		if (kv == modifiers.end())
+			break;
+		ss << ",\"" << kv->second.key
+			<< ':' << kv->second.value;
+		--i;
+	}
+	ss << "}" << std::endl;
+	return 0;
+}
+
+static int emit_elem_long(
+	std::stringstream& ss,
+	codes_handle *h, long rank, const char * key,
+	const std::map<long, modifier>& modifiers)
+{
+	return emit_elem(codes_get_long, ss, h, rank,
+		key, modifiers);
+}
+
+static int emit_elem_double(
+	std::stringstream& ss,
+	codes_handle *h, long rank, const char * key,
+	const std::map<long, modifier>& modifiers)
+{
+	return emit_elem(codes_get_double, ss, h, rank,
+		key, modifiers);
+}
+
+
+struct codes_handle_cleaner
+{
+	codes_handle_cleaner(codes_handle * h) : m_h(h) {}
+	~codes_handle_cleaner() {
+		codes_handle_delete(m_h);
+	}
+private:
+	codes_handle * m_h;
+};
+
+
+int cpp_bufr_load_amedas(const char * fname, std::stringstream& ss)
+{
+	// return  0 on success
+	//        -1 on open failure
+	//        -2 on failure to read a message from file
+	//        -3 on hitting memory size limit per item
+	//        -4 on unpack failure
+	//        -5 on failure to get value of an item
+	//        -6 on failure to determine number of aqcCodes
+	//        -7 on failure to determine number of timePeriods
+
+	FILE * fp;
+	if (fopen_s(&fp, fname, "rb") != 0)
+		return -1;
+
+	int err;
+	codes_handle * h;
+	if ((h = codes_handle_new_from_file(NULL, fp, PRODUCT_BUFR, &err)) != NULL
+		|| err != CODES_SUCCESS)
+	{
+		if (h == NULL)
+			return -2;
+	}
+
+
+	codes_handle_cleaner chc(h);
+
+	if (codes_set_long(h, "unpack", 1) != 0)
+		return -4;
+
+	long numberOfSubsets;
+	if (codes_get_long(h, "numberOfSubsets", &numberOfSubsets) != 0)
+		return -5;
+
+	long lower_index;
+	if (codes_get_long(h, "#1#organizationCode->index", &lower_index) != 0)
+		return -5;
+
+	long upper_index;
+	if (codes_get_long(h, "#2#organizationCode->index", &upper_index) != 0)
+		return -5;
+
+	long num_elements_per_subset = upper_index - lower_index;
+
+	long num_aqc_codes_per_subset = determine_num_occurence_per_subset(h, "aqcCode");
+	if (num_aqc_codes_per_subset == 0L)
+		return -6;
+
+	long num_timeperiods_per_subset = determine_num_occurence_per_subset(h, "timePeriod");
+	if (num_timeperiods_per_subset == 0L)
+		return -7;
+
+	ss << "[" << std::endl;
+
+	std::map<long, modifier> modifiers; // index -> modifier
+	for (long i = 0; i < numberOfSubsets; ++i) {
+		modifiers.clear();
+		load_modifiers(modifiers, h, i, "acqCode", num_aqc_codes_per_subset);
+		load_modifiers(modifiers, h, i, "timePeriod", num_timeperiods_per_subset);
+
+		ss << "  [";
+		const char **pp;
+		static const char * double_fields[] = {
+			"foo"
+		};
+		size_t count = sizeof double_fields / sizeof double_fields[0];
+		for(pp=double_fields; pp < double_fields+count; ++pp) {
+			if (emit_elem_double(ss, h, i, *pp, modifiers) < 0)
+				return -5;
+		}
+		static const char * long_fields[] = {
+			"bar"
+		}, **lp;
+		sz = sizeof long_fields / sizeof *lp;
+
+
+
+		CODES_CHECK(codes_get_long(h, "#1#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#2#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#3#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#4#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#5#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#13#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#6#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#1#totalSunshine", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#14#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#7#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#2#totalSunshine", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#8#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#15#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#1#totalPrecipitationOrTotalWaterEquivalent", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#16#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#1#totalPrecipitationPast1Hour", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#17#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#1#totalPrecipitationPast3Hours", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#18#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#1#totalPrecipitationPast6Hours", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#19#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#1#totalPrecipitationPast12Hours", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#20#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#1#totalPrecipitationPast24Hours", &dVal), 0);
+		CODES_CHECK(codes_get_double(h, "#3#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#1#timeSignificance", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#9#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#21#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#1#windDirection", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#22#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#1#windSpeed", &dVal), 0);
+		n	CODES_CHECK(codes_get_double(h, "#4#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#10#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#1#hourAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#1#minuteAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#23#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#1#maximumTemperatureAtHeightAndOverPeriodSpecified", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#2#hourAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#2#minuteAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#24#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#1#minimumTemperatureAtHeightAndOverPeriodSpecified", &dVal), 0);
+		CODES_CHECK(codes_get_double(h, "#5#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#4#hourAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#4#minuteAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#26#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#1#maximumWindGustDirection", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#27#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#1#maximumWindGustSpeed", &dVal), 0);
+		CODES_CHECK(codes_get_double(h, "#6#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#11#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#5#hourAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#5#minuteAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#28#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#2#maximumTemperatureAtHeightAndOverPeriodSpecified", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#6#hourAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#6#minuteAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#29#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#2#minimumTemperatureAtHeightAndOverPeriodSpecified", &dVal), 0);
+		CODES_CHECK(codes_get_double(h, "#7#heightOfSensorAboveLocalGroundOrDeckOfMarinePlatform", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#8#hourAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#8#minuteAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#31#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#2#maximumWindGustDirection", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#32#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#2#maximumWindGustSpeed", &dVal), 0);
+		CODES_CHECK(codes_get_long(h, "#12#timePeriod", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#9#hourAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#9#minuteAtObservation", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#33#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#1#windDirectionWhenMaximumWindSpeedObserved", &iVal), 0);
+		CODES_CHECK(codes_get_long(h, "#34#aqcCode", &iVal), 0);
+		CODES_CHECK(codes_get_double(h, "#1#maximumWindSpeed", &dVal), 0);
+
+
+
+
+	}
+}
+
+extern "C" {
+	__declspec(dllexport)
+	int bufr_load_amedas(const char * fname, char * buffer, size_t capacity)
+	{
+		return cpp_bufr_load_amedas(fname, buffer, capacity);
+	}
+}
