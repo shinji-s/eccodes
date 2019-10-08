@@ -157,7 +157,7 @@ char* grib_decode_string(const unsigned char* bitStream, long *bitOffset, size_t
 /* -1UL is 1111111... in every bit in binary representation */
 #define BIT_MASK(x) \
         (((x) == max_nbits) ? \
-                (unsigned long) -1UL : (1UL << (x)) - 1)
+                (unsigned long) -1 : (1UL << (x)) - 1)
 /**
  * decode a value consisting of nbits from an octet-bitstream to long-representation
  *

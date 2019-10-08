@@ -17,7 +17,7 @@
 /* -1UL is 1111111... in every bit in binary representation */
 #define BIT_MASK1(x) \
         (((x) >= max_nbits) ? \
-                (unsigned long) -1UL : (1UL << (x)) - 1)
+                (unsigned long) -1 : (1UL << (x)) - 1)
 
 /**
  * decode an array of n_vals values from a octet-stream

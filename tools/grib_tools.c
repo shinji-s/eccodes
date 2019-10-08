@@ -723,7 +723,7 @@ static void grib_tools_set_print_keys(grib_runtime_options* options, grib_handle
                     }
                 }
             }
-            qsort(&all_namespace_vals, ns_count, sizeof(char*), cmpstringp);
+            qsort((void *)&all_namespace_vals, ns_count, sizeof(char*), cmpstringp);
             for(i=0; i<ns_count; ++i) {
                 if (all_namespace_vals[i]) {
                     int print_it = 1;

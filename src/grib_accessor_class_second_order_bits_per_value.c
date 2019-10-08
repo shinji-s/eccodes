@@ -150,7 +150,7 @@ static const unsigned long nbits[32]={
         0x40000000, 0x80000000
 };
 */
-static const unsigned long nbits[64]={
+static const unsigned  long long nbits[64]={
         0x1,                 0x2,                 0x4,                 0x8,
         0x10,                0x20,                0x40,                0x80,
         0x100,               0x200,               0x400,               0x800,
@@ -171,7 +171,7 @@ static const unsigned long nbits[64]={
 
 static int number_of_bits(unsigned long x, long* result)
 {
-    const unsigned long *n=nbits;
+    const unsigned long long *n=nbits;
     const int count = sizeof(nbits)/sizeof(nbits[0]);
     *result=0;
     while (x>=*n) {
