@@ -20,9 +20,9 @@ namespace cs_shiolab_loader_test
             const string input_fname = "../../Z__C_RJTD_20190619000000_OBS_AMDS_Rjp_N1_bufr4.bin";
             const string output_fname = "../../amedas.json";
             var sb = new StringBuilder(65536 * 16 * 5);
-            long r = bufr_load(input_fname, sb, sb.Capacity);
+            int r = bufr_load(input_fname, sb, sb.Capacity);
             if (0 < r) {
-                sb = new StringBuilder((int)r);
+                sb = new StringBuilder(r);
                 r = bufr_load(input_fname,sb, sb.Capacity);
                 Debug.Assert(r == 0);
             }

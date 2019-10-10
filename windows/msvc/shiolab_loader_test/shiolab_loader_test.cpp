@@ -13,8 +13,8 @@ extern "C" {
 int main()
 {
 	std::vector<char> buffer(65536 * 16 * 32);
-
-	int r = bufr_load("c:/Users/shinj/Downloads/Z__C_RJTD_20190619000000_OBS_AMDS_Rjp_N1_bufr4.bin",
+	_putenv("ECCODES_DEFINITION_PATH=../../definitions");
+	int r = bufr_load("Z__C_RJTD_20190619000000_OBS_AMDS_Rjp_N1_bufr4.bin",
 		&buffer[0], buffer.size());
 	std::cout << &buffer[0] << std::endl;
 	std::cout << r << std::endl;

@@ -35,7 +35,6 @@ private:
 	std::function<void()> fn_;
 };
 
-
 // return  0 on success
 // -1 on open failure
 // -2 on failure to read a message from file
@@ -43,7 +42,7 @@ private:
 // -4 on codes_bufr_keys_iterator_new failure
 // -5 on codes_get_native_type failure
 // -6 on codes_get_size failure
-// (deprecated: -7 on encountering array key)
+// -7 on codes_get_long failure
 // -8 on codes_get_string failure
 // -9 on codes_bufr_keys_iterator_get_name failure
 // Minimum size of the buffer if the given buffer is too small
@@ -77,10 +76,8 @@ int cpp_bufr_load(const char * fname, char *buffer, size_t capacity)
 
 	std::stringstream ss;
 	ss << '[' << std::endl;
-
 	std::map<std::string, int> keyname_dict;
 	std::map<int, int> type_dict;
-	char value_str[256];
 	int section_number = 1;
 	while (codes_bufr_keys_iterator_next(kiter)) {
 		const char * name = codes_bufr_keys_iterator_get_name(kiter);
@@ -91,48 +88,63 @@ int cpp_bufr_load(const char * fname, char *buffer, size_t capacity)
 			++core_name;
 		else
 			core_name = name;
-		// Can't handle array types at the moment.
 		if (strcmp(core_name, "unexpandedDescriptors")==0)
 			continue;
-		if (strcmp(core_name, "subsetNumber")==0) {
-			_ltoa_s(section_number++, value_str, 10);
-		}
-		else {
-			size_t sz;
-			if (codes_get_size(h, name, &sz) != 0)
-				return -6;
-			if (sz != 1)
-				// return -7;
-				continue;
-			size_t len = sizeof(value_str);
-			if (codes_get_string(h, name, value_str, &len) != 0)
-				return -8;
-		}
 		auto kv = keyname_dict.find(core_name);
-		int element_id;
+		int keyname_id;
 		if (kv == keyname_dict.end()) {
-			element_id = static_cast<int>(keyname_dict.size());
+			keyname_id = static_cast<int>(keyname_dict.size());
 			std::string name_str(core_name);
-			std::pair<std::string, int> pair(name_str, element_id);
+			std::pair<std::string, int> pair(name_str, keyname_id);
 			keyname_dict.insert(pair);
 			int element_type;
 			if (codes_get_native_type(h, core_name, &element_type) != 0)
 				return -9;
-			type_dict.insert(std::pair<int, int>(element_id, element_type));
+			type_dict.insert(std::pair<int, int>(keyname_id, element_type));
 		}
 		else {
-			element_id = kv->second;
+			keyname_id = kv->second;
 		}
-		ss << "  [" << element_id << ',';
-		bool needs_quote = type_dict[element_id] == GRIB_TYPE_STRING;
-		if (needs_quote)
-			ss << '"';
-		ss << value_str;
-		if (needs_quote)
-			ss << '"';
-		ss << "]," << std::endl;
+		if (strcmp(core_name, "subsetNumber") == 0) {
+			ss << "  [" << keyname_id << ','
+				<< section_number++ << "]," << std::endl;
+		} else {
+			size_t len;
+			char s_value[256];
+			long l_value;
+			double d_value;
+			switch (type_dict[keyname_id]) {
+			case GRIB_TYPE_STRING:
+				len = sizeof(s_value);
+				if (codes_get_string(h, name, s_value, &len) != 0)
+					return -8;
+				if (s_value[0] == '\0')
+					continue;
+				ss << "  [" << keyname_id << ",\""
+					<< s_value << "\"]," << std::endl;
+				break;
+			case GRIB_TYPE_LONG:
+				if (codes_get_long(h, name, &l_value) != 0)
+					return -6;
+				if (l_value == GRIB_MISSING_LONG)
+					continue;
+				ss << "  [" << keyname_id << ','
+					<< l_value << "]," << std::endl;
+				break;
+			case GRIB_TYPE_DOUBLE:
+				if (codes_get_double(h, name, &d_value) != 0)
+					return -6;
+				if (d_value == GRIB_MISSING_DOUBLE)
+					continue;
+				ss << "  [" << keyname_id << ','
+					<< d_value << "]," << std::endl;
+				break;
+			default:
+				continue;
+			}
+		}
 	}
-
+	// Dump keyname dictionary.
 	ss << "  [" << std::endl;
 	std::list<std::pair<std::string, int>> keyname_list;
 	std::transform(keyname_dict.begin(), keyname_dict.end(),
