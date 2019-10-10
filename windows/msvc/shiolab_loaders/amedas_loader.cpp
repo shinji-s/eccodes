@@ -43,12 +43,12 @@ private:
 // -4 on codes_bufr_keys_iterator_new failure
 // -5 on codes_get_native_type failure
 // -6 on codes_get_size failure
-// -7 on encountering array key
+// (deprecated: -7 on encountering array key)
 // -8 on codes_get_string failure
 // -9 on codes_bufr_keys_iterator_get_name failure
 // Minimum size of the buffer if the given buffer is too small
 
-long cpp_bufr_load_amedas(const char * fname, char *buffer, size_t capacity)
+int cpp_bufr_load(const char * fname, char *buffer, size_t capacity)
 {
 	FILE * fp;
 	if (fopen_s(&fp, fname, "rb") != 0)
@@ -81,7 +81,7 @@ long cpp_bufr_load_amedas(const char * fname, char *buffer, size_t capacity)
 	std::map<std::string, int> keyname_dict;
 	std::map<int, int> type_dict;
 	char value_str[256];
-	int section_number = 0;
+	int section_number = 1;
 	while (codes_bufr_keys_iterator_next(kiter)) {
 		const char * name = codes_bufr_keys_iterator_get_name(kiter);
 		if (name == 0)
@@ -95,17 +95,19 @@ long cpp_bufr_load_amedas(const char * fname, char *buffer, size_t capacity)
 		if (strcmp(core_name, "unexpandedDescriptors")==0)
 			continue;
 		if (strcmp(core_name, "subsetNumber")==0) {
-			ss << "  [-1," << section_number++ << ']' << std::endl;
-			continue;
+			_ltoa_s(section_number++, value_str, 10);
 		}
-		size_t sz;
-		if (codes_get_size(h, name, &sz) != 0)
-			return -6;
-		if (sz != 1)
-			return -7;
-		size_t len = sizeof(value_str);
-		if (codes_get_string(h, name, value_str, &len) != 0)
-			return -8;
+		else {
+			size_t sz;
+			if (codes_get_size(h, name, &sz) != 0)
+				return -6;
+			if (sz != 1)
+				// return -7;
+				continue;
+			size_t len = sizeof(value_str);
+			if (codes_get_string(h, name, value_str, &len) != 0)
+				return -8;
+		}
 		auto kv = keyname_dict.find(core_name);
 		int element_id;
 		if (kv == keyname_dict.end()) {
@@ -164,8 +166,10 @@ long cpp_bufr_load_amedas(const char * fname, char *buffer, size_t capacity)
 
 extern "C" {
 	__declspec(dllexport)
-	long bufr_load_amedas(const char * fname, char * buffer, size_t capacity)
+	int bufr_load(const char * fname, char * buffer, size_t capacity)
 	{
-		return cpp_bufr_load_amedas(fname, buffer, capacity);
+		int r;
+		r = cpp_bufr_load(fname, buffer, capacity);
+		return r;
 	}
 }

@@ -7,14 +7,14 @@
 
 extern "C" {
 	__declspec(dllimport)
-		long bufr_load_amedas(const char * fname, char * buffer, size_t capacity);
+		int bufr_load(const char * fname, char * buffer, size_t capacity);
 }
 
 int main()
 {
 	std::vector<char> buffer(65536 * 16 * 32);
 
-	int r = bufr_load_amedas("c:/Users/shinj/Downloads/Z__C_RJTD_20190619000000_OBS_AMDS_Rjp_N1_bufr4.bin",
+	int r = bufr_load("c:/Users/shinj/Downloads/Z__C_RJTD_20190619000000_OBS_AMDS_Rjp_N1_bufr4.bin",
 		&buffer[0], buffer.size());
 	std::cout << &buffer[0] << std::endl;
 	std::cout << r << std::endl;
