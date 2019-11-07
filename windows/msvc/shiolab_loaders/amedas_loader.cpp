@@ -55,11 +55,10 @@ int cpp_bufr_load(const char * fname, char *buffer, size_t capacity)
 
 	int err;
 	codes_handle * h;
-	if ((h = codes_handle_new_from_file(NULL, fp, PRODUCT_BUFR, &err)) != NULL
+	if ((h = codes_handle_new_from_file(NULL, fp, PRODUCT_BUFR, &err)) == NULL
 		|| err != CODES_SUCCESS)
 	{
-		if (h == NULL)
-			return -2;
+		return -2;
 	}
 	ScopeGuard handle_cleaner(
 		[h]() { codes_handle_delete(h); });
