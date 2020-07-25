@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2005-2019 ECMWF.
+# (C) Copyright 2005- ECMWF.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -10,4 +10,9 @@
 
 . ./include.sh
 
-exec $test_dir/grib_sh_ieee64
+if [ $ECCODES_ON_WINDOWS -eq 1 ]; then
+    echo "$0: This test is currently disabled on Windows"
+    exit 0
+fi
+
+$EXEC $test_dir/grib_sh_ieee64

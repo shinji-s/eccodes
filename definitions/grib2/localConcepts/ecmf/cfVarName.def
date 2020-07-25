@@ -13283,12 +13283,6 @@
 	 parameterCategory = 228 ;
 	 parameterNumber = 23 ;
 	}
-#Zero degree level
-'deg0l' = {
-	 discipline = 192 ;
-	 parameterCategory = 228 ;
-	 parameterNumber = 24 ;
-	}
 #Horizontal visibility
 'hvis' = {
 	 discipline = 192 ;
@@ -16536,18 +16530,6 @@
 	 parameterCategory = 151 ;
 	 parameterNumber = 130 ;
 	}
-#Eastward sea water velocity
-'uoe' = {
-	 discipline = 192 ;
-	 parameterCategory = 151 ;
-	 parameterNumber = 131 ;
-	}
-#Northward sea water velocity
-'von' = {
-	 discipline = 192 ;
-	 parameterCategory = 151 ;
-	 parameterNumber = 132 ;
-	}
 #Upward sea water velocity
 'wo' = {
 	 discipline = 192 ;
@@ -16619,12 +16601,6 @@
 	 discipline = 192 ;
 	 parameterCategory = 151 ;
 	 parameterNumber = 144 ;
-	}
-#Sea surface height
-'zos' = {
-	 discipline = 192 ;
-	 parameterCategory = 151 ;
-	 parameterNumber = 145 ;
 	}
 #Sea level previous timestep
 'sl_1' = {
@@ -18007,7 +17983,7 @@
 	 parameterNumber = 54 ;
 	}
 #Mean 2 metre temperature in the last 24 hours anomaly
-'mn2t24a' = {
+'mean2t24a' = {
 	 discipline = 192 ;
 	 parameterCategory = 171 ;
 	 parameterNumber = 55 ;
@@ -19403,12 +19379,6 @@
 	 discipline = 192 ;
 	 parameterCategory = 174 ;
 	 parameterNumber = 95 ;
-	}
-#Sea-ice thickness
-'sithick' = {
-	 discipline = 192 ;
-	 parameterCategory = 174 ;
-	 parameterNumber = 98 ;
 	}
 #Liquid water potential temperature
 'p99.174' = {

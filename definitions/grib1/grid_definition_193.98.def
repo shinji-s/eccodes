@@ -1,4 +1,4 @@
-# Copyright 2005-2019 ECMWF.
+# (C) Copyright 2005- ECMWF.
 
 # GRID DEFINITION quasi-regular latitude/longitude grid
 # grib 1 -> 2
@@ -81,7 +81,9 @@ if(missing(Ni)){
    transient iteratorDisableUnrotate = 0 : hidden; # ECC-808
    iterator latlon(numberOfPoints,missingValue,values,longitudeFirstInDegrees,iInc ,
                    Ni,Nj,iScansNegatively ,
-                   latitudeFirstInDegrees,DjInDegrees,jScansPositively );
+                   latitudeFirstInDegrees,DjInDegrees,jScansPositively,jPointsAreConsecutive,
+                   isRotatedGrid, angleOfRotation,
+                   latitudeOfSouthernPoleInDegrees,longitudeOfSouthernPoleInDegrees);
    nearest regular(values,radius,Ni,Nj);
 }
 meta latLonValues latlonvalues(values);

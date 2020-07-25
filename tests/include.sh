@@ -1,4 +1,4 @@
-# Copyright 2005-2019 ECMWF.
+# (C) Copyright 2005- ECMWF.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -19,6 +19,9 @@ else
   # This is for autotools
   echo
   echo "TEST: $0"
+
+  # Only Unix supported
+  ECCODES_ON_WINDOWS=0
 
   data_dir=""
   # save current working dir

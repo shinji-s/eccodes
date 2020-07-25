@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2005-2019 ECMWF.
+# (C) Copyright 2005- ECMWF.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -39,7 +39,8 @@ rm -f temp_comp.1 temp_comp.2 temp_comp.3 temp_comp.123 temp_comp.321
 # GRIB-797: test last argument being a directory
 # ----------------------------------------
 temp_dir=tempdir.grib_compare
-mkdir -p $temp_dir
+rm -rf $temp_dir
+mkdir $temp_dir
 cp $infile $temp_dir
 ${tools_dir}/grib_compare $infile  $temp_dir
 rm -rf $temp_dir

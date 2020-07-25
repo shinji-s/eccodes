@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2005-2019 ECMWF.
+# (C) Copyright 2005- ECMWF.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -39,8 +39,5 @@ set -e
 vcount=`${tools_dir}/bufr_count -f $temp`
 [ "$vcount" = "2" ]
 
-# Reading from stdin
-count2=`cat $input | ${tools_dir}/bufr_count -`
-[ $count -eq $count2 ]
 
 rm -f $temp

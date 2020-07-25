@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2005-2019 ECMWF.
+# (C) Copyright 2005- ECMWF.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -13,10 +13,16 @@
 tempOut=temp.bufr_keys_iter.$$.out
 tempRef=temp.bufr_keys_iter.$$.ref
 
-input=${data_dir}/bufr/aaen_55.bufr
+# Test: check ident key is present
+# -------------------------------------------
+input=${data_dir}/bufr/syno_multi.bufr
+$EXEC ${test_dir}/bufr_keys_iter -a $input > $tempOut
+grep -q '^ident$' $tempOut
 
-## Iterate over ALL keys and skip none
-# ------------------------------------
+
+# Test: check full output
+# -------------------------------------------
+input=${data_dir}/bufr/aaen_55.bufr
 $EXEC ${test_dir}/bufr_keys_iter -a $input > $tempOut
 
 # Check the output of BUFR keys iterator

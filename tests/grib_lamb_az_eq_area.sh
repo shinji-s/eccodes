@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2005-2019 ECMWF.
+# (C) Copyright 2005- ECMWF.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -54,6 +54,10 @@ diff $DATA_OUTFILE $REF_FILE
 
 grib_check_key_equals $GRIB_OUTFILE standardParallelInDegrees,centralLongitudeInDegrees '48 9'
 grib_check_key_equals $GRIB_OUTFILE xDirectionGridLengthInMetres,yDirectionGridLengthInMetres '5000 5000'
+
+# Nearest
+${tools_dir}/grib_ls -l 67,-33,1 $GRIB_OUTFILE
+
 
 # Clean up
 rm -f $FILTER_FILE $GRIB_OUTFILE $DATA_OUTFILE

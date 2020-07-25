@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2005-2018 ECMWF.
+# (C) Copyright 2005- ECMWF.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -12,6 +12,11 @@
 
 label="grib_lam_bf"
 temp=temp.$label.txt
+
+if [ $ECCODES_ON_WINDOWS -eq 1 ]; then
+    echo "$0: This test is currently disabled on Windows"
+    exit 0
+fi
 
 dump_and_check()
 {
@@ -33,7 +38,7 @@ dump_and_check()
 
 # Spectral LAM fields (Bi-Fourier)
 # Run the test which generates the GRIB files
-${test_dir}/grib_lam_bf
+$EXEC ${test_dir}/grib_lam_bf
 
 dump_and_check lam_bf_lambert_bf_ellipse_diamond.grib                  3128
 dump_and_check lam_bf_mercator_bf_ellipse_diamond.grib                 3128

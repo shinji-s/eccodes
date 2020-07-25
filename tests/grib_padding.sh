@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 2005-2019 ECMWF.
+# (C) Copyright 2005- ECMWF.
 #
 # This software is licensed under the terms of the Apache Licence Version 2.0
 # which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -28,6 +28,7 @@ localDefinitions=`find ${def_dir}/grib1/ -name 'local.98.*def' | sed -e 's:.*/::
                 awk 'BEGIN {FS=".";} {print $3;}' |\
                 grep -v def |\
                 sed '/245/d' |\
+                sed '/12/d' |\
                 sed '/244/d' |\
                 sed '/192/d' |\
                 xargs`

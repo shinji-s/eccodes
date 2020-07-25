@@ -18,8 +18,8 @@ packing1="
 packing2="
     grid_ieee
     grid_simple
-    grid_simple_matrix"
-#TODO: grid_simple_log_preprocessing
+    grid_simple_matrix
+    grid_simple_log_preprocessing"
 
 if [ $HAVE_JPEG -eq 1 ]; then
     packing2="grid_jpeg "$packing2
@@ -67,6 +67,16 @@ res1=`${tools_dir}/grib_get '-F%.1f' -p avg,enorm $input`
 res2=`${tools_dir}/grib_get '-F%.1f' -p avg,enorm $temp`
 [ "$res1" = "$res2" ]
 rm -f $temp
+
+
+# IEEE to Simple Packing
+# -----------------------
+input=${data_dir}/grid_ieee.grib
+${tools_dir}/grib_set -r -s packingType=grid_simple $input $temp
+grib_check_key_equals $temp packingType 'grid_simple'
+stats1=`${tools_dir}/grib_get -F%.2f -p skew,kurt $input`
+stats2=`${tools_dir}/grib_get -F%.2f -p skew,kurt $temp`
+[ "$stats1" = "$stats2" ]
 
 
 # Change grib packing test

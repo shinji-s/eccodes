@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2019 ECMWF.
+ * (C) Copyright 2005- ECMWF.
  *
  * This software is licensed under the terms of the Apache Licence Version 2.0
  * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -23,11 +23,9 @@
 #include <grib_api.h>
 #include <errno.h>
 #include <string.h>
-#include <math.h>
 #include <sys/types.h>
 
 #ifndef ECCODES_ON_WINDOWS
-  #include <dirent.h>
   #include <unistd.h>
 #else
   #include <direct.h>
@@ -186,7 +184,7 @@ static void split(grib_handle *h)
 
 static void validate(const char* path)
 {
-    FILE *f = fopen(path,"r");
+    FILE *f = fopen(path,"rb");
     grib_handle *h = 0;
     int err;
     int count = 0;

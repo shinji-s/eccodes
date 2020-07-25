@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2019 ECMWF.
+ * (C) Copyright 2005- ECMWF.
  *
  * This software is licensed under the terms of the Apache Licence Version 2.0
  * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
@@ -14,9 +14,6 @@
 
 #include "tigge_tools.h"
 #include "eccodes_windef.h"
-
-#include <stdlib.h>
-#include <sys/types.h>
 
 #ifndef ECCODES_ON_WINDOWS
   #include <dirent.h>
