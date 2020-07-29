@@ -52,8 +52,8 @@ static int grib2_get_next_section(unsigned char* msgbegin, size_t msglen, unsign
 static int grib2_has_next_section(unsigned char* msgbegin, size_t msglen, unsigned char* secbegin, size_t seclen, int* err);
 static void grib2_build_message(grib_context* context, unsigned char* sections[], size_t sections_len[], void** data, size_t* msglen);
 static grib_multi_support* grib_get_multi_support(grib_context* c, FILE* f);
-static grib_multi_support* grib_multi_support_new(grib_context* c);
-static void grib_multi_support_clear(grib_context* c, grib_multi_support* gm);
+static grib_multi_support* grib_multi_support_new(grib_context* c, FILE* f);
+static void grib_multi_support_delete(grib_context* c, grib_multi_support* gm);
 static grib_handle* grib_handle_new_multi(grib_context* c, unsigned char** idata, size_t* buflen, int* error);
 
 /* Note: A fast cut-down version of strcmp which does NOT return -1 */
@@ -1552,49 +1552,36 @@ static void grib2_build_message(grib_context* context, unsigned char* sections[]
 /* For multi support mode: Reset all file handles equal to f. See GRIB-249 */
 void grib_multi_support_reset_file(grib_context* c, FILE* f)
 {
-    grib_multi_support* gm = NULL;
+    grib_multi_support* gm, * gm_next;
+    grib_multi_support** gm_pp;
     if (!c)
         c = grib_context_get_default();
     gm = c->multi_support;
+    gm_pp = &c->multi_support;
     while (gm) {
+        gm_next = gm->next;
         if (gm->file == f) {
-            gm->file = NULL;
+            grib_multi_support_delete(c, gm);
+            *gm_pp = gm_next;
+        } else {
+            gm_pp = &gm->next;
         }
-        gm = gm->next;
+        gm = gm_next;
     }
 }
 
 static grib_multi_support* grib_get_multi_support(grib_context* c, FILE* f)
 {
-    int i                    = 0;
-    grib_multi_support* gm   = c->multi_support;
-    grib_multi_support* prev = NULL;
-
+    grib_multi_support** gm_pp = &c->multi_support;
+    grib_multi_support*  gm    =  c->multi_support;
     while (gm) {
         if (gm->file == f)
             return gm;
-        prev = gm;
-        gm   = gm->next;
+        gm_pp = &gm->next;
+        gm    =  gm->next;
     }
-    gm = grib_multi_support_new(c);
-    if (prev==NULL) { // equivalent to 'if (!c->multi_support)'
-      c->multi_support = gm;
-    }
-    else {
-      prev->next = gm;
-    }
-
-    gm->next = 0;
-    if (gm->message)
-        grib_context_free(c, gm->message);
-    gm->message            = NULL;
-    gm->section_number     = 0;
-    gm->sections_length[0] = 16;
-    for (i = 1; i < 8; i++)
-        gm->sections_length[i] = 0;
-    gm->sections_length[8] = 4;
-    gm->file               = f;
-
+    gm = grib_multi_support_new(c, f);
+    *gm_pp = gm;
     return gm;
 }
 
@@ -1604,43 +1591,45 @@ void grib_multi_support_reset(grib_context* c)
     grib_multi_support* gm_next = NULL;
     while (gm) {
         gm_next = gm->next;
-        grib_multi_support_clear(c, gm);
-	grib_context_free(c, gm);
+        grib_multi_support_delete(c, gm);
         gm = gm_next;
     }
     c->multi_support = NULL;
 }
 
-static grib_multi_support* grib_multi_support_new(grib_context* c)
+static grib_multi_support* grib_multi_support_new(grib_context* c, FILE *f)
 {
     int i = 0;
     grib_multi_support* gm =
         (grib_multi_support*)grib_context_malloc_clear(c, sizeof(grib_multi_support));
-    gm->file                  = NULL;
+    gm->file                  = f;
+    gm->offset                = 0;
     gm->message               = NULL;
     gm->message_length        = 0;
+    for(i=0; i < sizeof gm->sections / sizeof gm->sections[0]; ++i)
+      gm->sections[i] =  NULL;
     gm->bitmap_section        = NULL;
     gm->bitmap_section_length = 0;
+    gm->sections_length[0]    = 16;
+    int vec_size = sizeof gm->sections_length/sizeof gm->sections_length[0];
+    for (i = 1; i < vec_size - 1; i++)
+        gm->sections_length[i] = 0;
+    gm->sections_length[vec_size-1] = 4;
     gm->section_number        = 0;
     gm->next                  = 0;
-    gm->sections_length[0]    = 16;
-    for (i = 1; i < 8; i++)
-        gm->sections_length[i] = 0;
-    gm->sections_length[8] = 4;
 
     return gm;
 }
 
-static void grib_multi_support_clear(grib_context* c, grib_multi_support *gm)
+static void grib_multi_support_delete(grib_context* c, grib_multi_support *gm)
 {
   /* Don't close gm->file. It is supposed to be owned by the client. */
   /* At lease that is the case for cfgrib.                           */
   if (gm->message) {
     grib_context_free(c, gm->message);
-    gm->message = NULL;
   }
   if (gm->bitmap_section) {
     grib_context_free(c, gm->bitmap_section);
-    gm->bitmap_section = NULL;
   }
+  grib_context_free(c, gm);
 }
