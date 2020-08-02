@@ -524,12 +524,13 @@ void grib_codetable_delete(grib_context* c)
     grib_codetable* t = c->codetable;
 
     while (t) {
-        grib_codetable* s = t->next;
+        grib_codetable* n = t->next;
         int i;
-
-        for (i = 0; i < t->size; i++) {
-            grib_context_free_persistent(c, t->entries[i].abbreviation);
-            grib_context_free_persistent(c, t->entries[i].title);
+        for(code_table_entry * p = &t->entries[0]; 
+            p < &t->entries[t->size]; ++p) {
+            grib_context_free_persistent(c, p->abbreviation);
+            grib_context_free_persistent(c, p->title);
+            grib_context_free_persistent(c, p->units);
         }
         grib_context_free_persistent(c, t->filename[0]);
         if (t->filename[1])
@@ -538,7 +539,7 @@ void grib_codetable_delete(grib_context* c)
         if (t->recomposed_name[1])
             grib_context_free_persistent(c, t->recomposed_name[1]);
         grib_context_free_persistent(c, t);
-        t = s;
+        t = n;
     }
 }
 

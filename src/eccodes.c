@@ -353,6 +353,10 @@ int codes_get_string_array(const grib_handle* h, const char* key, char** vals, s
 {
     return grib_get_string_array(h, key, vals, length);
 }
+int codes_del_string_array(const grib_handle* h, char** vals, size_t* length)
+{
+    return grib_del_string_array(h, vals, length);
+}
 int codes_get_bytes(const grib_handle* h, const char* key, unsigned char* bytes, size_t* length)
 {
     return grib_get_bytes(h, key, bytes, length);

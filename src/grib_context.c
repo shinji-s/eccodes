@@ -24,8 +24,6 @@
 int feenableexcept(int excepts);
 #endif
 
-grib_string_list grib_file_not_found;
-
 /* Windows always has a colon in pathnames e.g. C:\temp\file. So instead we use semi-colons as delimiter */
 /* in order to have multiple definitions/samples directories */
 #ifdef ECCODES_ON_WINDOWS
@@ -371,6 +369,14 @@ static grib_context default_grib_context = {
 #endif
 };
 
+#if defined(__linux__)
+__attribute__((destructor)) void eccodes_module_destructor()
+{
+  grib_context_delete(&default_grib_context);
+}
+#endif
+
+
 /* Hopefully big enough. Note: Definitions and samples path environment variables can contain SEVERAL colon-separated directories */
 #define ECC_PATH_MAXLEN 8192
 
@@ -698,7 +704,7 @@ char* grib_context_full_defs_path(grib_context* c, const char* basename)
         fullpath = (grib_string_list*)grib_trie_get(c->def_files, basename);
         GRIB_MUTEX_UNLOCK(&mutex_c);
         if (fullpath != NULL) {
-            return fullpath->value;
+            return fullpath->value; // ==NULL if the file does not exist.
         }
         if (!c->grib_definition_files_dir) {
             err = init_definition_files_dir(c);
@@ -730,7 +736,7 @@ char* grib_context_full_defs_path(grib_context* c, const char* basename)
 
     GRIB_MUTEX_LOCK(&mutex_c);
     /* Store missing files so we don't check for them again and again */
-    grib_trie_insert(c->def_files, basename, &grib_file_not_found);
+    grib_trie_insert(c->def_files, basename, NULL);
     /*grib_context_log(c,GRIB_LOG_ERROR,"Def file \"%s\" not found",basename);*/
     GRIB_MUTEX_UNLOCK(&mutex_c);
     full[0] = 0;
@@ -766,6 +772,15 @@ void grib_context_free_persistent(const grib_context* c, void* p)
         c->free_persistent_mem(c, p);
 }
 
+static void grib_string_list_delete(grib_context *c, void *arg_p)
+{
+    grib_string_list *p = arg_p;
+    if(p != NULL) {
+        grib_context_free(c, p->value);
+        grib_context_free(c, p);
+    }
+}
+
 void grib_context_reset(grib_context* c)
 {
     if (!c)
@@ -792,6 +807,26 @@ void grib_context_reset(grib_context* c)
         grib_context_free_persistent(c, c->grib_reader);
     }
 
+    for(int i=0; i<sizeof c->concepts / sizeof c->concepts[0]; ++i) {
+        grib_concept_value * v = c->concepts[i];
+        if (v == NULL)
+            continue;
+        /*
+          All nodes in the grib_concept value chain contain, in the
+          'index' member, a pointer to the same trie. Let's assume that the
+          head element owns the trie and the others borrow the reference.
+          Also note that pointers in the trie, v->index, are borrowed
+          references. Therefore grib_trie_noop_deleter is used.
+        */
+        if(v->index)
+            grib_trie_delete_generic(v->index, grib_trie_noop_deleter);
+        while(v) {
+            grib_concept_value * n = v->next;
+            grib_concept_value_delete(c, v);
+            v = n;
+        }
+    }
+
     c->grib_reader = NULL;
 
     if (c->codetable)
@@ -802,21 +837,35 @@ void grib_context_reset(grib_context* c)
         grib_smart_table_delete(c);
     c->smart_table = NULL;
 
-    if (c->grib_definition_files_dir)
-        grib_context_free(c, c->grib_definition_files_dir);
+    {
+      grib_string_list* p = c->grib_definition_files_dir;
+      while(p) {
+          grib_string_list * n = p->next;
+          grib_context_free(c, p->value);
+          grib_context_free(c, p);
+          p = n;
+      }
+    }
 
     if (c->multi_support_on)
         grib_multi_support_reset(c);
+
+    free(c->grib_definition_files_path);
+
+    if(c == &default_grib_context) {
+        grib_hash_keys_delete(c->keys);
+        grib_itrie_delete(c->concepts_index);
+        grib_itrie_delete(c->hash_array_index);
+        grib_trie_delete_generic(c->def_files, grib_string_list_delete);
+        grib_trie_delete(c->lists);
+        grib_trie_delete(c->classes);
+    }
 }
 
 void grib_context_delete(grib_context* c)
 {
     if (!c)
         c = grib_context_get_default();
-
-    grib_hash_keys_delete(c->keys);
-    grib_trie_delete(c->def_files);
-
     grib_context_reset(c);
     if (c != &default_grib_context)
         grib_context_free_persistent(&default_grib_context, c);
@@ -844,6 +893,7 @@ void grib_context_set_definitions_path(grib_context* c, const char* path)
     GRIB_MUTEX_INIT_ONCE(&once, &init);
     GRIB_MUTEX_LOCK(&mutex_c);
 
+    free(c->grib_definition_files_path);
     c->grib_definition_files_path = strdup(path);
     grib_context_log(c, GRIB_LOG_DEBUG, "Definitions path changed to: %s", c->grib_definition_files_path);
 

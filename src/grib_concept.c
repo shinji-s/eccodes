@@ -27,6 +27,10 @@ void grib_concept_value_delete(grib_context* c, grib_concept_value* v)
         e = n;
     }
     grib_context_free_persistent(c, v->name);
+    /* Don't try freeing v->index here becuase it contains a borrowed
+       reference. See grib_context_reset() in grib_context.c and destroy()
+       in action_class_concept.c to understand how the trie gets free'd.
+    */
     grib_context_free_persistent(c, v);
 }
 

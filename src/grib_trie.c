@@ -377,6 +377,37 @@ void grib_trie_delete(grib_trie* t)
     GRIB_MUTEX_UNLOCK(&mutex);
 }
 
+static void _grib_trie_delete_generic(grib_trie* t,
+                                      void (*deleter)(grib_context *, void *))
+{
+  int i;
+  for (i = t->first; i <= t->last; i++) {
+    if (t->next[i])
+      _grib_trie_delete_generic(t->next[i], deleter);
+  }
+  (*deleter)(t->context, t->data);
+#ifdef RECYCLE_TRIE
+  grib_context_free_persistent(t->context, t);
+#else
+  grib_context_free(t->context, t);
+#endif
+}
+
+void grib_trie_delete_generic(grib_trie* t,
+                              void (*deleter)(grib_context *, void *))
+{
+    if(t== NULL)
+        return;
+    GRIB_MUTEX_INIT_ONCE(&once, &init);
+    GRIB_MUTEX_LOCK(&mutex);
+    _grib_trie_delete_generic(t, deleter);
+    GRIB_MUTEX_UNLOCK(&mutex);
+}
+
+void grib_trie_noop_deleter(grib_context *c, void *data)
+{
+}
+
 void grib_trie_clear(grib_trie* t)
 {
     if (t) {

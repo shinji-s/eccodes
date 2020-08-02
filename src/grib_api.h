@@ -836,6 +836,8 @@ int grib_get_string(const grib_handle* h, const char* key, char* mesg, size_t* l
 */
 int grib_get_string_array(const grib_handle* h, const char* key, char** vals, size_t* length);
 
+int grib_del_string_array(const grib_handle* h, char** vals, size_t* length);
+
 /**
 *  Get raw bytes values from a key. If several keys of the same name are present, the last one is returned
 * @see  grib_set_bytes

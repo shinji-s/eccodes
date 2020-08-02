@@ -1176,7 +1176,6 @@ void grib_arguments_free(grib_context*, grib_arguments*);
 const char* grib_argument_next(grib_arguments**);
 
 /* file_pool */
-extern grib_string_list grib_file_not_found;
 
 typedef struct grib_file grib_file;
 typedef struct grib_file_pool grib_file_pool;

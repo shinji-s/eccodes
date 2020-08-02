@@ -208,8 +208,15 @@ static void destroy(grib_context* context, grib_action* act)
     grib_action_concept* self = (grib_action_concept*)act;
 
     grib_concept_value* v = self->concept;
+
+    /* 'grib_concept_value' objects that are chained to self->concept
+       contain a pointer to the same trie and there is no owner of
+       the reference anywhere else. Therefore freeing of v->index must
+       be performed once and once only. grib_trie_noop_deleter is
+       is used becuase the trie contains borrowed pointers.
+    */
     if (v)
-        grib_trie_delete(v->index);
+        grib_trie_delete_generic(v->index, grib_trie_noop_deleter);
     while (v) {
         grib_concept_value* n = v->next;
         grib_concept_value_delete(context, v);
@@ -232,6 +239,13 @@ static grib_concept_value* get_concept_impl(grib_handle* h, grib_action_concept*
     int id;
 
     grib_context* context = ((grib_action*)self)->context;
+    /* The 'grib_concept_value' chain created here gets stored in
+     *  context->concepts[] but not in self->concepts. Therefore
+     *  context->concepts needs to be free'd in grib_context_reset().
+     *  self->concepts is initialzed with 'concept' arg passed to
+     *  grib_action_create_concept() constructor and gets free'd
+     *  in the destroy() function.
+     */
     grib_concept_value* c = NULL;
 
     if (self->concept != NULL)
@@ -292,6 +306,11 @@ static grib_concept_value* get_concept_impl(grib_handle* h, grib_action_concept*
     h->context->concepts[id] = c;
     if (c) {
         grib_trie* index = grib_trie_new(context);
+        /* Note that that this 'index' gets free'd only once in
+           grib_context_reset() and 'index' pointers in the
+           trie 'context->index' is free'd without freeing the
+           contained pointer.
+        */
         while (c) {
             c->index = index;
             grib_trie_insert_no_replace(index, c->name, c);
@@ -299,7 +318,7 @@ static grib_concept_value* get_concept_impl(grib_handle* h, grib_action_concept*
         }
     }
 
-    return h->context->concepts[id];
+    return c;
 }
 
 static grib_concept_value* get_concept(grib_handle* h, grib_action_concept* self)

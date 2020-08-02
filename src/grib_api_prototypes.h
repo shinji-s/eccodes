@@ -1143,6 +1143,8 @@ int grib_count_in_filename(grib_context* c, const char* filename, int* n);
 grib_trie* grib_trie_new(grib_context* c);
 void grib_trie_delete_container(grib_trie* t);
 void grib_trie_delete(grib_trie* t);
+void grib_trie_delete_generic(grib_trie* t, void (*)(grib_context *, void*));
+void grib_trie_noop_deleter(grib_context * c, void * data);
 void grib_trie_clear(grib_trie* t);
 void* grib_trie_insert(grib_trie* t, const char* key, void* data);
 void* grib_trie_insert_no_replace(grib_trie* t, const char* key, void* data);

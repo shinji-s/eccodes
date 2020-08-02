@@ -1374,6 +1374,15 @@ int grib_get_string_array(const grib_handle* h, const char* name, char** val, si
     }
 }
 
+int grib_del_string_array(const grib_handle* h, char** val, size_t* length)
+{
+  for(int i=0; i<*length; ++i) {
+    grib_context_free(h->context, val[i]);
+  }
+  Assert(GRIB_SUCCESS==0);
+  return GRIB_SUCCESS;
+}
+
 int _grib_get_long_array_internal(const grib_handle* h, grib_accessor* a, long* val, size_t buffer_len, size_t* decoded_length)
 {
     if (a) {
