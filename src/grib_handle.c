@@ -170,7 +170,7 @@ int grib_handle_delete(grib_handle* h)
         grib_section_delete(ct, h->root);
         grib_context_free(ct, h->gts_header);
 
-        grib_context_log(ct, GRIB_LOG_DEBUG, "grib_handle_delete: deleting handle %p", h);
+        grib_context_log(ct, GRIB_LOG_DEBUG, "grib_handle_delete: deleting handle %p", (void*)h);
         grib_context_free(ct, h);
         h = NULL;
     }
@@ -192,7 +192,7 @@ grib_handle* grib_new_handle(grib_context* c)
         g->product_kind = PRODUCT_ANY; /* Default. Will later be set to a specific product */
     }
 
-    grib_context_log(c, GRIB_LOG_DEBUG, "grib_new_handle: allocated handle %p", g);
+    grib_context_log(c, GRIB_LOG_DEBUG, "grib_new_handle: allocated handle %p", (void*)g);
 
     return g;
 }
@@ -1440,7 +1440,14 @@ grib_action* grib_action_from_filter(const char* filter)
     grib_action* a        = NULL;
     grib_context* context = grib_context_get_default();
     a                     = grib_parse_file(context, filter);
-    context->grib_reader  = NULL;
+
+    if (context->grib_reader && context->grib_reader->first) {
+        grib_context_free_persistent(context, context->grib_reader->first->filename);
+        grib_context_free_persistent(context, context->grib_reader->first);
+        grib_context_free_persistent(context, context->grib_reader);
+    }
+
+    context->grib_reader = NULL;
     return a;
 }
 
